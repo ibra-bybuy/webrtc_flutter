@@ -3,6 +3,7 @@ import 'dart:core';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'screens/webrtc/display_media.dart';
 import 'src/call_sample/call_sample.dart';
 import 'src/call_sample/data_channel_sample.dart';
 import 'src/route_item.dart';
@@ -47,16 +48,17 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-          appBar: AppBar(
-            title: Text('Flutter-WebRTC example'),
-          ),
-          body: ListView.builder(
-              shrinkWrap: true,
-              padding: const EdgeInsets.all(0.0),
-              itemCount: items.length,
-              itemBuilder: (context, i) {
-                return _buildRow(context, items[i]);
-              })),
+        appBar: AppBar(
+          title: Text('WebRTC'),
+        ),
+        body: ListView.builder(
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(0.0),
+            itemCount: items.length,
+            itemBuilder: (context, i) {
+              return _buildRow(context, items[i]);
+            }),
+      ),
     );
   }
 
@@ -92,7 +94,7 @@ class _MyAppState extends State<MyApp> {
     showDemoDialog<DialogDemoAction>(
         context: context,
         child: AlertDialog(
-            title: const Text('Enter server address:'),
+            title: const Text('Адрес сервера:'),
             content: TextField(
               onChanged: (String text) {
                 setState(() {
@@ -105,13 +107,13 @@ class _MyAppState extends State<MyApp> {
               textAlign: TextAlign.center,
             ),
             actions: <Widget>[
-              FlatButton(
-                  child: const Text('CANCEL'),
+              TextButton(
+                  child: const Text('Отмена'),
                   onPressed: () {
                     Navigator.pop(context, DialogDemoAction.cancel);
                   }),
-              FlatButton(
-                  child: const Text('CONNECT'),
+              TextButton(
+                  child: const Text('Коннект'),
                   onPressed: () {
                     Navigator.pop(context, DialogDemoAction.connect);
                   })
@@ -121,18 +123,18 @@ class _MyAppState extends State<MyApp> {
   _initItems() {
     items = <RouteItem>[
       RouteItem(
-          title: 'P2P Call Sample',
-          subtitle: 'P2P Call Sample.',
+          title: 'P2P звонок',
+          subtitle: 'P2P звонок.',
           push: (BuildContext context) {
             _datachannel = false;
             _showAddressDialog(context);
           }),
       RouteItem(
-          title: 'Data Channel Sample',
-          subtitle: 'P2P Data Channel.',
+          title: 'Звонок тест',
+          subtitle: '',
           push: (BuildContext context) {
-            _datachannel = true;
-            _showAddressDialog(context);
+            Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => const GetUserMediaSample()));
           }),
     ];
   }

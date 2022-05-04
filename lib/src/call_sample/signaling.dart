@@ -407,7 +407,7 @@ class Signaling {
       */
     }
     pc.onIceCandidate = (candidate) async {
-      if (candidate == null) {
+      if (candidate.candidate == null) {
         print('onIceCandidate: complete!');
         return;
       }

@@ -1,10 +1,10 @@
-import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:flutter_webrtc_demo/model/recorder.dart';
 
 enum CameraType { front, back }
 
 class CameraEntities {
   CameraType cameraType;
-  MediaRecorder? mediaRecorder;
+  Recorder? recorder;
   bool isFlashOn;
   CameraEntities({
     this.cameraType = CameraType.front,

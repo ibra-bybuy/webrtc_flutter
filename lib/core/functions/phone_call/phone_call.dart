@@ -11,9 +11,11 @@ class PhoneCall {
     try {
       final stream =
           await navigator.mediaDevices.getUserMedia(mediaConstraints);
+
       entities.isCalling = true;
       return stream;
     } catch (e) {
+      print(e);
       return null;
     }
   }
@@ -34,15 +36,7 @@ class PhoneCall {
 
   Map<String, dynamic> get mediaConstraints => {
         'audio': true,
-        'video': {
-          'mandatory': {
-            'minWidth': '640',
-            'minHeight': '480',
-            'minFrameRate': '30',
-          },
-          'facingMode': defaultFacingMode,
-          'optional': [],
-        }
+        'video': {'facingMode': defaultFacingMode, 'echoCancellation': true}
       };
 
   bool get isCalling => entities.isCalling;

@@ -1,8 +1,27 @@
 import 'dart:io';
 
 class CurrentPlatform {
-  static bool get isDesktop =>
-      Platform.isLinux || Platform.isMacOS || Platform.isWindows;
+  static bool get isDesktop {
+    try {
+      return Platform.isLinux || Platform.isMacOS || Platform.isWindows;
+    } catch (e) {
+      return false;
+    }
+  }
 
-  static bool get isMobile => Platform.isAndroid || Platform.isIOS;
+  static bool get isMobile {
+    try {
+      return Platform.isAndroid || Platform.isIOS;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static bool get isAndroid {
+    try {
+      return Platform.isAndroid;
+    } catch (e) {
+      return false;
+    }
+  }
 }

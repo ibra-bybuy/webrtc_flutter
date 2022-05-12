@@ -301,7 +301,7 @@
 				"${BUILT_PRODUCTS_DIR}/flutter_webrtc/flutter_webrtc.framework",
 				"${BUILT_PRODUCTS_DIR}/path_provider_macos/path_provider_macos.framework",
 				"${BUILT_PRODUCTS_DIR}/shared_preferences_macos/shared_preferences_macos.framework",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/WebRTC/WebRTC.framework/WebRTC",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/WebRTC-SDK/WebRTC.framework/WebRTC",
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (

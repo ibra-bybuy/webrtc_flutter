@@ -1,6 +1,8 @@
 import 'dart:core';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'screens/webrtc/display_media.dart';
@@ -8,7 +10,12 @@ import 'src/call_sample/call_sample.dart';
 import 'src/call_sample/data_channel_sample.dart';
 import 'src/route_item.dart';
 
-void main() => runApp(new MyApp());
+void main() {
+  if (WebRTC.platformIsDesktop) {
+    debugDefaultTargetPlatformOverride = TargetPlatform.fuchsia;
+  }
+  runApp(new MyApp());
+}
 
 class MyApp extends StatefulWidget {
   @override
@@ -90,7 +97,7 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  _showAddressDialog(context) {
+  _showAddressDialog(context, {void Function(BuildContext)? connect}) {
     showDemoDialog<DialogDemoAction>(
         context: context,
         child: AlertDialog(
@@ -115,7 +122,11 @@ class _MyAppState extends State<MyApp> {
               TextButton(
                   child: const Text('Коннект'),
                   onPressed: () {
-                    Navigator.pop(context, DialogDemoAction.connect);
+                    if (connect != null) {
+                      connect(context);
+                    } else {
+                      Navigator.pop(context, DialogDemoAction.connect);
+                    }
                   })
             ]));
   }
@@ -132,9 +143,17 @@ class _MyAppState extends State<MyApp> {
       RouteItem(
           title: 'Звонок тест',
           subtitle: '',
-          push: (BuildContext context) {
-            Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) => const GetUserMediaSample()));
+          push: (BuildContext context) async {
+            await _showAddressDialog(
+              context,
+              connect: (context) {
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => GetUserMediaSample(
+                    host: _server,
+                  ),
+                ));
+              },
+            );
           }),
     ];
   }

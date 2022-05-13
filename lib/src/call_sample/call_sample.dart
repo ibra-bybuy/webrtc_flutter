@@ -23,7 +23,6 @@ class _CallSampleState extends State<CallSample> {
 
   bool _waitAccept = false;
 
-  // ignore: unused_element
   _CallSampleState();
 
   @override

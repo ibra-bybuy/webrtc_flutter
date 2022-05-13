@@ -1,15 +1,25 @@
 import 'dart:core';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:flutter_webrtc_demo/core/functions/camera/camera.dart';
-import 'package:flutter_webrtc_demo/core/functions/camera/camera_entities.dart';
-import 'package:flutter_webrtc_demo/core/functions/gallery/gallery_saver.dart';
-import 'package:flutter_webrtc_demo/core/functions/image/image_writer.dart';
-import 'package:flutter_webrtc_demo/core/functions/phone_call/entities.dart';
-import 'package:flutter_webrtc_demo/core/functions/phone_call/phone_call.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_webrtc_demo/core/components/dialogs/accept_dialog.dart';
+import 'package:flutter_webrtc_demo/core/components/dialogs/invite_dialog.dart';
+import 'package:flutter_webrtc_demo/core/cubits/call/call_cubit.dart';
+import 'package:flutter_webrtc_demo/core/cubits/call/call_state.dart';
+import 'package:flutter_webrtc_demo/core/cubits/camera_switcher/camera_switcher_cubit.dart';
+import 'package:flutter_webrtc_demo/core/cubits/flash/flash_cubit.dart';
+import 'package:flutter_webrtc_demo/core/cubits/video_recorder/video_recorder.dart';
 import 'package:flutter_webrtc_demo/core/functions/platform/current_platform.dart';
-import 'package:flutter_webrtc_demo/src/call_sample/signaling.dart';
+import 'package:flutter_webrtc_demo/core/functions/rtc/capture_frame.dart';
+import 'package:flutter_webrtc_demo/providers/signaling.dart';
+import 'package:flutter_webrtc_demo/screens/webrtc/components/other_video_card.dart';
+import 'package:flutter_webrtc_demo/screens/webrtc/components/screenshot_btn.dart';
+import 'package:flutter_webrtc_demo/screens/webrtc/components/switch_camera_btn.dart';
+
+import 'components/call_btn.dart';
+import 'components/flash_btn.dart';
+import 'components/my_video_card.dart';
+import 'components/record_btn.dart';
 
 class GetUserMediaSample extends StatefulWidget {
   final String host;
@@ -20,317 +30,137 @@ class GetUserMediaSample extends StatefulWidget {
 }
 
 class _GetUserMediaSampleState extends State<GetUserMediaSample> {
-  late final Camera _cameraFunctions = Camera.init(
-    RTCVideoRenderer(),
-    CameraEntities(),
-    remoteRenders: [
-      RTCVideoRenderer(),
-    ],
-  );
-  final PhoneCall _phoneCall = PhoneCall(PhoneCallEntities());
-
-  Signaling? _signaling;
-  Session? _session;
-  bool _waitAccept = false;
-  String? _selfId;
-  List<dynamic> _peers = [];
+  final CallCubit callCubit = CallCubit();
+  late final CameraSwitchCubit cameraSwitchCubit =
+      CameraSwitchCubit(callCubit.myRenderer);
+  late final SignalingProvider signalingProvider;
+  late final VideoRecorderCubit videoRecorder =
+      VideoRecorderCubit(callCubit.myRenderer);
+  late final FlashCubit flashCubit = FlashCubit(callCubit.myRenderer);
 
   @override
   void initState() {
     super.initState();
-    _connect();
+    _initSignaling();
   }
 
-  void _connect() {
-    _signaling ??= Signaling(widget.host)..connect();
-    _signaling?.onSignalingStateChange = (SignalingState state) {
-      switch (state) {
-        case SignalingState.ConnectionClosed:
-        case SignalingState.ConnectionError:
-        case SignalingState.ConnectionOpen:
-          break;
-      }
-    };
-
-    _signaling?.onCallStateChange = (Session session, CallState state) async {
-      switch (state) {
-        case CallState.CallStateNew:
-          setState(() {
-            _session = session;
-          });
-          break;
-        case CallState.CallStateRinging:
-          bool? accept = await _showAcceptDialog();
-          if (accept!) {
-            _accept();
-            setState(() {
-              _phoneCall.entities.isCalling = true;
-            });
-          } else {
-            _reject();
-          }
-          break;
-        case CallState.CallStateBye:
-          if (_waitAccept) {
-            print('peer reject');
-            _waitAccept = false;
-            Navigator.of(context).pop(false);
-          }
-          setState(() {
-            _cameraFunctions.disposeRenders();
-            _phoneCall.entities.isCalling = false;
-            _session = null;
-          });
-          break;
-        case CallState.CallStateInvite:
-          _waitAccept = true;
-          _showInvateDialog();
-          break;
-        case CallState.CallStateConnected:
-          if (_waitAccept) {
-            _waitAccept = false;
-            Navigator.of(context).pop(false);
-          }
-          setState(() {
-            _phoneCall.entities.isCalling = true;
-          });
-
-          break;
-        case CallState.CallStateRinging:
-      }
-    };
-
-    _signaling?.onPeersUpdate = ((event) {
-      setState(() {
-        _selfId = event['self'];
-        _peers = event['peers'];
-      });
-    });
-
-    _signaling?.onLocalStream = ((stream) {
-      _cameraFunctions.renderer.srcObject = stream;
-    });
-
-    _signaling?.onAddRemoteStream = ((_, stream) {
-      if (_cameraFunctions.remoteRenders.isNotEmpty) {
-        _cameraFunctions.remoteRenders.first.srcObject = stream;
-      }
-    });
-
-    _signaling?.onRemoveRemoteStream = ((_, stream) {
-      _cameraFunctions.disposeRemoteRenders();
-    });
-  }
-
-  _accept() {
-    if (_session != null) {
-      _signaling?.accept(_session!.sid);
-    }
-  }
-
-  _reject() {
-    if (_session != null) {
-      _signaling?.reject(_session!.sid);
-    }
-  }
-
-  Future<bool?> _showAcceptDialog() {
-    return showDialog<bool?>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("title"),
-          content: Text("accept?"),
-          actions: [
-            TextButton(
-              child: Text("reject"),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            TextButton(
-              child: Text("accept"),
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<bool?> _showInvateDialog() {
-    return showDialog<bool?>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("title"),
-          content: Text("waiting"),
-          actions: [
-            TextButton(
-              child: Text("cancel"),
-              onPressed: () {
-                Navigator.of(context).pop(false);
-                _hangUp();
-              },
-            ),
-          ],
-        );
-      },
-    );
+  void _initSignaling() {
+    signalingProvider = SignalingProvider(callCubit, widget.host,
+        onRinging: ShowAcceptDialog(context).call, onHangup: () {
+      Navigator.of(context).pop(false);
+    }, onInvite: () {
+      ShowInviteDialog(
+        context,
+        onCancel: () {
+          Navigator.of(context).pop(false);
+          signalingProvider.hangUp();
+        },
+      ).call();
+    }, onConnected: () {
+      Navigator.of(context).pop(false);
+    })
+      ..init();
   }
 
   @override
   Future<void> deactivate() async {
-    _hangUp();
-    await _cameraFunctions.dispose();
-
+    signalingProvider.hangUp();
     super.deactivate();
-  }
-
-  void _makeCall() async {
-    final stream = await _phoneCall.makeCall();
-
-    if (stream != null) {
-      _cameraFunctions.setMediaRecorder(stream);
-      if (!mounted) return;
-
-      setState(() {});
-    }
-  }
-
-  void _hangUp() {
-    _phoneCall.endCall();
-    _cameraFunctions.clean();
-
-    setState(() {});
-  }
-
-  void _captureFrame() async {
-    final frame = await _cameraFunctions.captureFrame();
-    if (frame != null) {
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          content: Image.memory(frame.asUint8List(), height: 720, width: 1280),
-          actions: [
-            TextButton(
-              onPressed: Navigator.of(context, rootNavigator: true).pop,
-              style: TextButton.styleFrom(primary: Colors.grey),
-              child: const Text('Закрыть'),
-            ),
-            TextButton(
-              onPressed: () async {
-                final file = await ImageWriter(frame.asUint8List(),
-                    name: "screenshot.png")();
-                await GallerySaver(file.path).saveImage();
-                Navigator.of(context, rootNavigator: true).pop();
-              },
-              child: const Text('Сохранить'),
-            ),
-          ],
-        ),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Звонок'),
-        actions: _phoneCall.isCalling
-            ? [
-                if (_cameraFunctions.isFlashAvailable) ...[
-                  IconButton(
-                      icon: Icon(_cameraFunctions.isFlashOn
-                          ? Icons.flash_off
-                          : Icons.flash_on),
-                      onPressed: () async {
-                        await _cameraFunctions
-                            .setFlash(!_cameraFunctions.isFlashOn);
-                        setState(() {});
-                      }),
-                ],
-                if (CurrentPlatform.isMobile) ...[
-                  IconButton(
-                    icon: const Icon(Icons.switch_video),
-                    onPressed: () async {
-                      await _cameraFunctions.switchCamera();
+    return BlocBuilder<CameraSwitchCubit, CameraType>(
+      bloc: cameraSwitchCubit,
+      builder: (context, cameraState) {
+        return BlocBuilder<CallCubit, CallCubitState>(
+          bloc: callCubit,
+          builder: (context, callState) {
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Звонок'),
+                actions: callState.isCalling
+                    ? [
+                        if (flashCubit.isFlashAvailable(cameraState)) ...[
+                          BlocBuilder<FlashCubit, bool>(
+                            bloc: flashCubit,
+                            builder: (context, flashState) {
+                              return FlashBtn(
+                                isFlashOn: flashState,
+                                onPressed: () async {
+                                  await flashCubit.setFlash(!flashState);
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                        if (CurrentPlatform.isMobile) ...[
+                          SwitchCameraBtn(
+                            onPressed: () async {
+                              await cameraSwitchCubit.switchCam();
 
-                      if (_cameraFunctions.isFlashOn) {
-                        await _cameraFunctions.setFlash(false);
-                      }
-
-                      setState(() {});
-                    },
-                  ),
-                ],
-                IconButton(
-                  icon: const Icon(Icons.camera),
-                  onPressed: _captureFrame,
-                ),
-                if (_cameraFunctions.isRecordingAvailable) ...[
-                  IconButton(
-                      icon: Icon(_cameraFunctions.isRecording
-                          ? Icons.stop
-                          : Icons.fiber_manual_record),
-                      onPressed: () async {
-                        _cameraFunctions.isRecording
-                            ? await _cameraFunctions.stopRecording()
-                            : await _cameraFunctions.startRecording();
-
-                        setState(() {});
-                      }),
-                ],
-              ]
-            : null,
-      ),
-      body: OrientationBuilder(builder: (context, orientation) {
-        return Container(
-          child: Stack(
-            children: List<Widget>.generate(
-              _cameraFunctions.remoteRenders.length,
-              (index) => Positioned(
-                left: 0.0,
-                right: 0.0,
-                top: 0.0,
-                bottom: 0.0,
-                child: Container(
-                  margin: EdgeInsets.fromLTRB(0.0, 0.0, 0.0, 0.0),
-                  width: MediaQuery.of(context).size.width,
-                  height: MediaQuery.of(context).size.height,
-                  child: RTCVideoView(_cameraFunctions.remoteRenders[index]),
-                  decoration: BoxDecoration(color: Colors.black54),
-                ),
+                              if (flashCubit.isFlashOn) {
+                                await flashCubit.setFlash(false);
+                              }
+                            },
+                          ),
+                        ],
+                        ScreenshotBtn(
+                          onPressed: () =>
+                              CaptureFrame(callCubit.myRenderer).call(context),
+                        ),
+                        if (videoRecorder.isRecordingAvailable) ...[
+                          BlocBuilder<VideoRecorderCubit, bool>(
+                            bloc: videoRecorder,
+                            builder: (context, videoRecorderState) {
+                              return RecordBtn(
+                                isRecording: videoRecorderState,
+                                onPressed: () async {
+                                  videoRecorderState
+                                      ? await videoRecorder.stopRecording()
+                                      : await videoRecorder.startRecording();
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                      ]
+                    : null,
               ),
-            )..add(
-                Positioned(
-                  right: 20.0,
-                  top: 20.0,
-                  child: Container(
-                    width: 100,
-                    height: 120,
-                    child: RTCVideoView(
-                      _cameraFunctions.renderer,
-                      mirror: _cameraFunctions.isFaceMode,
-                      objectFit:
-                          RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+              body: OrientationBuilder(builder: (context, orientation) {
+                if (callState.isCalling) {
+                  return Container(
+                    child: Stack(
+                      children: List<Widget>.generate(
+                        callCubit.remoteRenderers.length,
+                        (index) =>
+                            OtherVideoCard(callCubit.remoteRenderers[index]),
+                      )..add(MyVideoCard(
+                          callCubit.myRenderer,
+                          mirror: cameraSwitchCubit.isFaceMode,
+                        )),
                     ),
-                  ),
-                ),
+                  );
+                }
+
+                return Center(
+                  child: Text("Your ID: ${callState.myId}"),
+                );
+              }),
+              floatingActionButton: CallBtn(
+                isCalling: callState.isCalling,
+                onPressed: () {
+                  if (callState.isCalling) {
+                    signalingProvider.hangUp();
+                  } else {
+                    signalingProvider.makeCall();
+                  }
+                },
               ),
-          ),
+            );
+          },
         );
-      }),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _phoneCall.isCalling
-            ? _hangUp
-            : () {
-                _makeCall();
-              },
-        tooltip: _phoneCall.isCalling ? 'Hangup' : 'Call',
-        child: Icon(_phoneCall.isCalling ? Icons.call_end : Icons.phone),
-      ),
+      },
     );
   }
 }

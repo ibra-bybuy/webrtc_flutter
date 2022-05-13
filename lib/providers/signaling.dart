@@ -92,7 +92,7 @@ class SignalingProvider {
   }
 
   void _onInvite() {
-    _waitAccept = false;
+    _waitAccept = true;
     if (onInvite != null) {
       onInvite!();
     }
@@ -130,11 +130,11 @@ class SignalingProvider {
 
   void _onAddRemoteStream() {
     _signaling?.onAddRemoteStream = ((_, stream) async {
-      final renderer = RTCVideoRenderer();
-      await renderer.initialize();
-      renderer.srcObject = stream;
-
-      callCubit.addRemoteRenderer(renderer);
+      if (callCubit.remoteRenderers.first.textureId == null) {
+        await callCubit.remoteRenderers.first.initialize();
+        callCubit.addRemoteRenderer(callCubit.remoteRenderers.first);
+      }
+      callCubit.remoteRenderers.first.srcObject = stream;
     });
   }
 
@@ -146,7 +146,9 @@ class SignalingProvider {
 
   void _disposeRemoteRenderers() {
     final renderers = callCubit.remoteRenderers;
-    for (final rd in renderers) rd.srcObject = null;
+    for (final rd in renderers) {
+      rd.srcObject = null;
+    }
   }
 
   void _disposeMyRender() {
@@ -175,6 +177,14 @@ class SignalingProvider {
     }
   }
 
+  Future<void> deactivate() async {
+    await callCubit.myRenderer.dispose();
+    for (final rd in callCubit.remoteRenderers) {
+      await rd.dispose();
+    }
+    _signaling?.close();
+  }
+
   Future<void> makeCall() async {
     try {
       final stream =
@@ -185,6 +195,12 @@ class SignalingProvider {
     } catch (e) {
       print(e);
       return null;
+    }
+  }
+
+  void inviteById(String peerId, {bool useScreen = false}) async {
+    if (_signaling != null && peerId != callCubit.myId) {
+      _signaling?.invite(peerId, 'video', useScreen);
     }
   }
 

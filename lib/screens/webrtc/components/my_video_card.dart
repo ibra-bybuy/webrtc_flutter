@@ -4,7 +4,8 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 class MyVideoCard extends StatelessWidget {
   final RTCVideoRenderer renderer;
   final bool mirror;
-  const MyVideoCard(this.renderer, {Key? key, this.mirror = false})
+  final void Function()? onTap;
+  const MyVideoCard(this.renderer, {Key? key, this.mirror = false, this.onTap})
       : super(key: key);
 
   @override
@@ -15,10 +16,13 @@ class MyVideoCard extends StatelessWidget {
       child: Container(
         width: 100,
         height: 120,
-        child: RTCVideoView(
-          renderer,
-          mirror: mirror,
-          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+        child: GestureDetector(
+          onTap: onTap,
+          child: RTCVideoView(
+            renderer,
+            mirror: mirror,
+            objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+          ),
         ),
       ),
     );

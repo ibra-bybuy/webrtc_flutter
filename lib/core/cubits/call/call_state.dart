@@ -10,6 +10,7 @@ class CallCubitState extends Equatable {
   final List<dynamic> peers;
   final RTCVideoRenderer myRenderer;
   final List<RTCVideoRenderer> remoteRenderers;
+  final bool myAsMain;
   const CallCubitState({
     this.isCalling = false,
     this.session,
@@ -17,6 +18,7 @@ class CallCubitState extends Equatable {
     this.peers = const [],
     required this.myRenderer,
     this.remoteRenderers = const [],
+    this.myAsMain = false,
   });
 
   CallCubitState copyWith({
@@ -26,6 +28,7 @@ class CallCubitState extends Equatable {
     List<dynamic>? peers,
     RTCVideoRenderer? myRenderer,
     List<RTCVideoRenderer>? remoteRenderers,
+    bool? myAsMain,
   }) {
     return CallCubitState(
       isCalling: isCalling ?? this.isCalling,
@@ -34,6 +37,7 @@ class CallCubitState extends Equatable {
       peers: peers ?? this.peers,
       myRenderer: myRenderer ?? this.myRenderer,
       remoteRenderers: remoteRenderers ?? this.remoteRenderers,
+      myAsMain: myAsMain ?? this.myAsMain,
     );
   }
 
@@ -52,7 +56,7 @@ class CallCubitState extends Equatable {
 
   @override
   String toString() {
-    return 'CallCubitState(isCalling: $isCalling, session: $session, myId: $myId, peers: $peers, myRenderer: $myRenderer, remoteRenderers: $remoteRenderers)';
+    return 'CallCubitState(isCalling: $isCalling, session: $session, myId: $myId, peers: $peers, myRenderer: $myRenderer, remoteRenderers: $remoteRenderers, myAsMain: $myAsMain)';
   }
 
   @override
@@ -64,6 +68,7 @@ class CallCubitState extends Equatable {
       peers,
       myRenderer,
       remoteRenderers,
+      myAsMain,
     ];
   }
 }

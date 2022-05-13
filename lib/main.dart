@@ -99,47 +99,50 @@ class _MyAppState extends State<MyApp> {
 
   _showAddressDialog(context, {void Function(BuildContext)? connect}) {
     showDemoDialog<DialogDemoAction>(
-        context: context,
-        child: AlertDialog(
-            title: const Text('Адрес сервера:'),
-            content: TextField(
-              onChanged: (String text) {
-                setState(() {
-                  _server = text;
-                });
-              },
-              decoration: InputDecoration(
-                hintText: _server,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            actions: <Widget>[
-              TextButton(
-                  child: const Text('Отмена'),
-                  onPressed: () {
-                    Navigator.pop(context, DialogDemoAction.cancel);
-                  }),
-              TextButton(
-                  child: const Text('Коннект'),
-                  onPressed: () {
-                    if (connect != null) {
-                      connect(context);
-                    } else {
-                      Navigator.pop(context, DialogDemoAction.connect);
-                    }
-                  })
-            ]));
+      context: context,
+      child: AlertDialog(
+        title: const Text('Адрес сервера:'),
+        content: TextField(
+          onChanged: (String text) {
+            setState(() {
+              _server = text;
+            });
+          },
+          decoration: InputDecoration(
+            hintText: _server,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+              child: const Text('Отмена'),
+              onPressed: () {
+                Navigator.pop(context, DialogDemoAction.cancel);
+              }),
+          TextButton(
+            child: const Text('Коннект'),
+            onPressed: () {
+              if (connect != null) {
+                connect(context);
+              } else {
+                Navigator.pop(context, DialogDemoAction.connect);
+              }
+            },
+          )
+        ],
+      ),
+    );
   }
 
   _initItems() {
     items = <RouteItem>[
-      RouteItem(
-          title: 'P2P звонок',
-          subtitle: 'P2P звонок.',
-          push: (BuildContext context) {
-            _datachannel = false;
-            _showAddressDialog(context);
-          }),
+      // RouteItem(
+      //     title: 'P2P звонок',
+      //     subtitle: 'P2P звонок.',
+      //     push: (BuildContext context) {
+      //       _datachannel = false;
+      //       _showAddressDialog(context);
+      //     }),
       RouteItem(
           title: 'Звонок тест',
           subtitle: '',

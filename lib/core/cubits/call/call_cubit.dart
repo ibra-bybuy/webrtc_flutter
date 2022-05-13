@@ -5,7 +5,17 @@ import 'package:flutter_webrtc_demo/src/call_sample/signaling.dart';
 import 'call_state.dart';
 
 class CallCubit extends Cubit<CallCubitState> {
-  CallCubit() : super(CallCubitState(myRenderer: RTCVideoRenderer()));
+  CallCubit()
+      : super(
+          CallCubitState(
+            myRenderer: RTCVideoRenderer(),
+            remoteRenderers: [RTCVideoRenderer()],
+          ),
+        );
+
+  void setMyAsMain(bool set) {
+    emit(state.copyWith(myAsMain: set));
+  }
 
   void updateIsCalling(bool isCalling) {
     emit(state.copyWith(isCalling: isCalling));
@@ -42,4 +52,5 @@ class CallCubit extends Cubit<CallCubitState> {
   RTCVideoRenderer get myRenderer => state.myRenderer;
   List<RTCVideoRenderer> get remoteRenderers => state.remoteRenderers;
   Session? get session => state.session;
+  String? get myId => state.myId;
 }

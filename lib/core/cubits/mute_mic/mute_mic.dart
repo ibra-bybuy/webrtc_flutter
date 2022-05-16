@@ -5,11 +5,11 @@ class MuteMicCubit extends Cubit<bool> {
   final RTCVideoRenderer renderer;
   MuteMicCubit(this.renderer, bool initialState) : super(initialState);
 
-  void muteMic() {
+  void muteMic({bool? force}) {
     if (getTrack != null) {
-      bool enabled = getTrack!.enabled;
-      getTrack!.enabled = !enabled;
-      emit(!enabled);
+      bool switched = force ?? !getTrack!.enabled;
+      getTrack!.enabled = switched;
+      emit(switched);
     }
   }
 

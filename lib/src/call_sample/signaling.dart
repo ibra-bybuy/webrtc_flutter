@@ -22,6 +22,7 @@ enum CallState {
   CallStateInvite,
   CallStateConnected,
   CallStateBye,
+  TurnMicOff
 }
 
 class Session {
@@ -134,6 +135,13 @@ class Signaling {
     }
   }
 
+  void turnMicOf(String peerId) {
+    _send(
+      'mic_off',
+      {"id": peerId, "from": _selfId},
+    );
+  }
+
   void accept(String sessionId) {
     var session = _sessions[sessionId];
     if (session == null) {
@@ -239,6 +247,15 @@ class Signaling {
           if (session != null) {
             onCallStateChange?.call(session, CallState.CallStateBye);
             _closeSession(session);
+          }
+        }
+        break;
+      case 'mic_off':
+        {
+          var sessionId = data['session_id'];
+          var session = _sessions[sessionId];
+          if (session != null) {
+            onCallStateChange?.call(session, CallState.TurnMicOff);
           }
         }
         break;

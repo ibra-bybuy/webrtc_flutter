@@ -65,6 +65,8 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
       ).call();
     }, onConnected: () {
       Navigator.of(context).pop();
+    }, onMicOff: () {
+      muteMicCubit.muteMic(force: false);
     })
       ..init();
   }
@@ -145,6 +147,19 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                               : callCubit.remoteRenderers.first,
                           mirror: callState.myAsMain &&
                               cameraSwitchCubit.isFaceMode,
+                          stackChildren: [
+                            if (!callState.myAsMain) ...[
+                              Positioned(
+                                left: 10,
+                                top: 50,
+                                child: IconButton(
+                                  onPressed: () => signalingProvider
+                                      .turnMicOff(callState.myId ?? ""),
+                                  icon: Icon(Icons.mic_off),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         MyVideoCard(
                           !callState.myAsMain
@@ -198,14 +213,19 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                       if (callState.isCalling) {
                         signalingProvider.hangUp();
                       } else {
-                        CallDialog(context, (ctx, peerId) {
-                          Navigator.of(ctx).pop();
-                          if (peerId.isNotEmpty) {
-                            signalingProvider.inviteById(peerId);
+                        CallDialog(
+                          context,
+                          (ctx, peerId) {
+                            Navigator.of(ctx).pop();
+                            if (peerId.isNotEmpty) {
+                              signalingProvider.inviteById(peerId);
 
-                            //signalingProvider.makeCall();
-                          }
-                        }).call();
+                              //signalingProvider.makeCall();
+                            }
+                          },
+                          peers: callState.peers,
+                          myId: callState.myId,
+                        ).call();
                       }
                     },
                   ),

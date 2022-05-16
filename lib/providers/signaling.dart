@@ -10,6 +10,7 @@ class SignalingProvider {
   final void Function()? onHangup;
   final void Function()? onInvite;
   final void Function()? onConnected;
+  final void Function()? onMicOff;
   bool _waitAccept = false;
   SignalingProvider(
     this.callCubit,
@@ -18,6 +19,7 @@ class SignalingProvider {
     this.onHangup,
     this.onInvite,
     this.onConnected,
+    this.onMicOff,
   });
 
   void init() {
@@ -56,8 +58,15 @@ class SignalingProvider {
         case CallState.CallStateInvite:
           _onInvite();
           break;
+
         case CallState.CallStateConnected:
           _onConnected();
+          break;
+
+        case CallState.TurnMicOff:
+          if (onMicOff != null) {
+            onMicOff!();
+          }
 
           break;
         case CallState.CallStateRinging:
@@ -202,6 +211,10 @@ class SignalingProvider {
     if (_signaling != null && peerId != callCubit.myId) {
       _signaling?.invite(peerId, 'video', useScreen);
     }
+  }
+
+  void turnMicOff(String peerId) async {
+    _signaling?.turnMicOf(peerId);
   }
 
   Map<String, dynamic> get mediaConstraints => {

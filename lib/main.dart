@@ -6,8 +6,6 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'screens/webrtc/display_media.dart';
-import 'src/call_sample/call_sample.dart';
-import 'src/call_sample/data_channel_sample.dart';
 import 'src/route_item.dart';
 
 void main() {
@@ -86,12 +84,6 @@ class _MyAppState extends State<MyApp> {
       if (value != null) {
         if (value == DialogDemoAction.connect) {
           _prefs.setString('server', _server);
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (BuildContext context) => _datachannel
-                      ? DataChannelSample(host: _server)
-                      : CallSample(host: _server)));
         }
       }
     });
@@ -102,7 +94,8 @@ class _MyAppState extends State<MyApp> {
       context: context,
       child: AlertDialog(
         title: const Text('Адрес сервера:'),
-        content: TextField(
+        content: TextFormField(
+          initialValue: _server,
           onChanged: (String text) {
             setState(() {
               _server = text;
@@ -150,6 +143,7 @@ class _MyAppState extends State<MyApp> {
             await _showAddressDialog(
               context,
               connect: (context) {
+                _prefs.setString('server', _server);
                 Navigator.of(context).push(MaterialPageRoute(
                   builder: (context) => GetUserMediaSample(
                     host: _server,

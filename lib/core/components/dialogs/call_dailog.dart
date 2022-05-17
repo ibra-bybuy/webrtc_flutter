@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 class CallDialog {
   final BuildContext context;
-  final void Function(BuildContext, String) onCall;
-  String _id = "";
+  final void Function(BuildContext, String, bool) onCall;
+  //String _id = "";
   final List<dynamic> peers;
   final String? myId;
   CallDialog(
@@ -20,10 +20,10 @@ class CallDialog {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              decoration: InputDecoration(hintText: "ID собеседника"),
-              onChanged: (str) => _id = str,
-            ),
+            // TextField(
+            //   decoration: InputDecoration(hintText: "ID собеседника"),
+            //   onChanged: (str) => _id = str,
+            // ),
             if (peers.isNotEmpty) ...[
               const SizedBox(
                 height: 20.0,
@@ -39,10 +39,19 @@ class CallDialog {
                     if (isMe) return SizedBox();
 
                     return InkWell(
-                      onTap: () => onCall(context, peers[index]['id']),
+                      onTap: () => onCall(context, peers[index]['id'], false),
                       child: Padding(
                         padding: const EdgeInsets.all(8.0),
-                        child: Text(peers[index]['name']),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text(peers[index]['name'])),
+                            const SizedBox(width: 30.0),
+                            IconButton(
+                                onPressed: () =>
+                                    onCall(context, peers[index]['id'], true),
+                                icon: Icon(Icons.screen_share)),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -59,10 +68,10 @@ class CallDialog {
             },
             child: Text("Закрыть"),
           ),
-          TextButton(
-            onPressed: () => onCall(context, _id),
-            child: Text("Позвонить"),
-          )
+          // TextButton(
+          //   onPressed: () => onCall(context, _id, false),
+          //   child: Text("Позвонить"),
+          // )
         ],
       ),
     );

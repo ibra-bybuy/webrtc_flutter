@@ -12,6 +12,9 @@ void main() {
   if (WebRTC.platformIsDesktop) {
     debugDefaultTargetPlatformOverride = TargetPlatform.fuchsia;
   }
+  if (WebRTC.platformIsAndroid) {
+    WidgetsFlutterBinding.ensureInitialized();
+  }
   runApp(new MyApp());
 }
 
@@ -30,7 +33,6 @@ class _MyAppState extends State<MyApp> {
   String _server = '';
   late SharedPreferences _prefs;
 
-  bool _datachannel = false;
   @override
   initState() {
     super.initState();
@@ -39,7 +41,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   _buildRow(context, item) {
-    return ListBody(children: <Widget>[
+    return ListBody(children: [
       ListTile(
         title: Text(item.title),
         onTap: () => item.push(context),

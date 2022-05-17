@@ -1,5 +1,6 @@
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:flutter_webrtc_demo/core/cubits/call/call_cubit.dart';
+import 'package:flutter_webrtc_demo/model/renderer.dart';
 import 'package:flutter_webrtc_demo/src/call_sample/signaling.dart';
 
 class SignalingProvider {
@@ -90,12 +91,17 @@ class SignalingProvider {
   void _onHangup() {
     if (_waitAccept) {
       _waitAccept = false;
-      if (onHangup != null) {
-        onHangup!();
-      }
     }
-    _disposeMyRender();
-    _disposeRemoteRenderers();
+    if (onHangup != null) {
+      onHangup!();
+    }
+    _nullMyRender();
+    _nullRemoteRenderers();
+    _cleanCubits();
+  }
+
+  void _cleanCubits() {
+    callCubit.cleanRemoteRenderers();
     callCubit.emitNewSession(null);
     callCubit.updateIsCalling(false);
   }
@@ -131,37 +137,52 @@ class SignalingProvider {
   }
 
   Future<void> setMyStream(MediaStream stream) async {
-    if (callCubit.myRenderer.textureId == null) {
-      await callCubit.myRenderer.initialize();
+    if (callCubit.myVideoRenderer.textureId == null) {
+      await callCubit.myVideoRenderer.initialize();
     }
-    callCubit.myRenderer.srcObject = stream;
+    callCubit.myVideoRenderer.srcObject = stream;
   }
 
   void _onAddRemoteStream() {
-    _signaling?.onAddRemoteStream = ((_, stream) async {
-      if (callCubit.remoteRenderers.first.textureId == null) {
-        await callCubit.remoteRenderers.first.initialize();
-        callCubit.addRemoteRenderer(callCubit.remoteRenderers.first);
-      }
-      callCubit.remoteRenderers.first.srcObject = stream;
+    _signaling?.onAddRemoteStream = ((sess, stream) async {
+      final renderer =
+          Renderer(videoRenderer: RTCVideoRenderer(), id: sess.pid);
+
+      await renderer.videoRenderer.initialize();
+      renderer.videoRenderer.srcObject = stream;
+      callCubit.addRemoteRenderer(renderer);
     });
   }
 
   void _onRemoveRemoteStream() {
     _signaling?.onRemoveRemoteStream = ((_, stream) {
-      _disposeRemoteRenderers();
+      _nullRemoteRenderers();
     });
   }
 
-  void _disposeRemoteRenderers() {
-    final renderers = callCubit.remoteRenderers;
+  void _nullRemoteRenderers() {
+    final renderers = callCubit.remoteVideoRenderers;
     for (final rd in renderers) {
       rd.srcObject = null;
     }
   }
 
-  void _disposeMyRender() {
-    callCubit.myRenderer.srcObject = null;
+  void _nullMyRender() {
+    callCubit.myVideoRenderer.srcObject = null;
+  }
+
+  Future<void> _disposeMyRender() async {
+    if (callCubit.myVideoRenderer.textureId != null) {
+      await callCubit.myVideoRenderer.dispose();
+    }
+  }
+
+  Future<void> _disposeRemoteRenders() async {
+    for (final rd in callCubit.remoteVideoRenderers) {
+      if (rd.textureId != null) {
+        await rd.dispose();
+      }
+    }
   }
 
   void accept() {
@@ -177,20 +198,18 @@ class SignalingProvider {
   }
 
   void hangUp() {
-    _disposeMyRender();
-    _disposeRemoteRenderers();
-    callCubit.updateIsCalling(false);
+    _nullMyRender();
+    _nullRemoteRenderers();
 
     if (callCubit.session != null) {
       _signaling?.bye(callCubit.session!.sid);
     }
+    _cleanCubits();
   }
 
   Future<void> deactivate() async {
-    await callCubit.myRenderer.dispose();
-    for (final rd in callCubit.remoteRenderers) {
-      await rd.dispose();
-    }
+    await _disposeMyRender();
+    await _disposeRemoteRenders();
     _signaling?.close();
   }
 
@@ -202,7 +221,6 @@ class SignalingProvider {
       await setMyStream(stream);
       callCubit.updateIsCalling(true);
     } catch (e) {
-      print(e);
       return null;
     }
   }
@@ -214,7 +232,7 @@ class SignalingProvider {
   }
 
   void turnMicOff(String peerId) async {
-    _signaling?.turnMicOf(peerId);
+    _signaling?.turnMicOf(peerId, callCubit.session?.sid ?? "");
   }
 
   Map<String, dynamic> get mediaConstraints => {

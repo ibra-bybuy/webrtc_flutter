@@ -1,20 +1,18 @@
 import 'package:equatable/equatable.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:flutter_webrtc_demo/model/renderer.dart';
 
 import 'package:flutter_webrtc_demo/src/call_sample/signaling.dart';
 
 class CallCubitState extends Equatable {
   final bool isCalling;
   final Session? session;
-  final String? myId;
   final List<dynamic> peers;
-  final RTCVideoRenderer myRenderer;
-  final List<RTCVideoRenderer> remoteRenderers;
+  final Renderer myRenderer;
+  final List<Renderer> remoteRenderers;
   final bool myAsMain;
   const CallCubitState({
     this.isCalling = false,
     this.session,
-    this.myId,
     this.peers = const [],
     required this.myRenderer,
     this.remoteRenderers = const [],
@@ -24,16 +22,14 @@ class CallCubitState extends Equatable {
   CallCubitState copyWith({
     bool? isCalling,
     Session? session,
-    String? myId,
     List<dynamic>? peers,
-    RTCVideoRenderer? myRenderer,
-    List<RTCVideoRenderer>? remoteRenderers,
+    Renderer? myRenderer,
+    List<Renderer>? remoteRenderers,
     bool? myAsMain,
   }) {
     return CallCubitState(
       isCalling: isCalling ?? this.isCalling,
       session: session ?? this.session,
-      myId: myId ?? this.myId,
       peers: peers ?? this.peers,
       myRenderer: myRenderer ?? this.myRenderer,
       remoteRenderers: remoteRenderers ?? this.remoteRenderers,
@@ -47,7 +43,6 @@ class CallCubitState extends Equatable {
     return CallCubitState(
       isCalling: this.isCalling,
       session: session,
-      myId: myId ?? this.myId,
       peers: this.peers,
       myRenderer: this.myRenderer,
       remoteRenderers: this.remoteRenderers,
@@ -56,7 +51,7 @@ class CallCubitState extends Equatable {
 
   @override
   String toString() {
-    return 'CallCubitState(isCalling: $isCalling, session: $session, myId: $myId, peers: $peers, myRenderer: $myRenderer, remoteRenderers: $remoteRenderers, myAsMain: $myAsMain)';
+    return 'CallCubitState(isCalling: $isCalling, session: $session, peers: $peers, myRenderer: $myRenderer, remoteRenderers: $remoteRenderers, myAsMain: $myAsMain)';
   }
 
   @override
@@ -64,7 +59,6 @@ class CallCubitState extends Equatable {
     return [
       isCalling,
       session,
-      myId,
       peers,
       myRenderer,
       remoteRenderers,

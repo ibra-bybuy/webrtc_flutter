@@ -135,11 +135,16 @@ class Signaling {
     }
   }
 
-  void turnMicOf(String peerId) {
+  void turnMicOf(String peerId, String sessionId) {
     _send(
       'mic_off',
-      {"id": peerId, "from": _selfId},
+      {
+        "session_id": sessionId,
+        "id": peerId,
+        "from": _selfId,
+      },
     );
+    print("Turning mic off for $peerId from $_selfId");
   }
 
   void accept(String sessionId) {
@@ -252,9 +257,11 @@ class Signaling {
         break;
       case 'mic_off':
         {
-          var sessionId = data['session_id'];
-          var session = _sessions[sessionId];
-          if (session != null) {
+          final sessionId = data['session_id'];
+          final userId = data['id'];
+          final session = _sessions[sessionId];
+          print("Signal to turn mic off for $userId & mine is $_selfId");
+          if (session != null && userId == _selfId) {
             onCallStateChange?.call(session, CallState.TurnMicOff);
           }
         }

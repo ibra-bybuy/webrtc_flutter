@@ -14,6 +14,7 @@ import 'package:flutter_webrtc_demo/core/cubits/turn_camera/turn_camera.dart';
 import 'package:flutter_webrtc_demo/core/cubits/video_recorder/video_recorder.dart';
 import 'package:flutter_webrtc_demo/core/functions/platform/current_platform.dart';
 import 'package:flutter_webrtc_demo/core/functions/rtc/capture_frame.dart';
+import 'package:flutter_webrtc_demo/providers/foreground_service.dart';
 import 'package:flutter_webrtc_demo/providers/signaling.dart';
 import 'package:flutter_webrtc_demo/screens/webrtc/components/other_video_card.dart';
 import 'package:flutter_webrtc_demo/screens/webrtc/components/screenshot_btn.dart';
@@ -35,15 +36,16 @@ class GetUserMediaSample extends StatefulWidget {
 class _GetUserMediaSampleState extends State<GetUserMediaSample> {
   final CallCubit callCubit = CallCubit();
   late final CameraSwitchCubit cameraSwitchCubit =
-      CameraSwitchCubit(callCubit.myRenderer);
+      CameraSwitchCubit(callCubit.myVideoRenderer);
   late final SignalingProvider signalingProvider;
   late final VideoRecorderCubit videoRecorder =
-      VideoRecorderCubit(callCubit.myRenderer);
-  late final FlashCubit flashCubit = FlashCubit(callCubit.myRenderer);
+      VideoRecorderCubit(callCubit.myVideoRenderer);
+  late final FlashCubit flashCubit = FlashCubit(callCubit.myVideoRenderer);
   late final MuteMicCubit muteMicCubit =
-      MuteMicCubit(callCubit.myRenderer, true);
+      MuteMicCubit(callCubit.myVideoRenderer, true);
   late final TurnCameraCubit turnCameraCubit =
-      TurnCameraCubit(callCubit.myRenderer, true);
+      TurnCameraCubit(callCubit.myVideoRenderer, true);
+  ForegroundService? foregroundService;
 
   @override
   void initState() {
@@ -52,23 +54,35 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
   }
 
   void _initSignaling() {
-    signalingProvider = SignalingProvider(callCubit, widget.host,
-        onRinging: ShowAcceptDialog(context).call, onHangup: () {
-      Navigator.of(context).pop(false);
-    }, onInvite: () {
-      ShowInviteDialog(
-        context,
-        onCancel: () {
-          Navigator.of(context).pop();
-          signalingProvider.hangUp();
-        },
-      ).call();
-    }, onConnected: () {
-      Navigator.of(context).pop();
-    }, onMicOff: () {
-      muteMicCubit.muteMic(force: false);
-    })
-      ..init();
+    signalingProvider = SignalingProvider(
+      callCubit,
+      widget.host,
+      onRinging: ShowAcceptDialog(context).call,
+      onHangup: () {
+        foregroundService?.stop();
+        Navigator.of(context).popUntil((route) => route.isCurrent);
+      },
+      onInvite: () {
+        ShowInviteDialog(
+          context,
+          onCancel: () {
+            Navigator.of(context).pop();
+            signalingProvider.hangUp();
+          },
+        ).call();
+      },
+      onConnected: () {
+        Navigator.of(context).pop();
+      },
+      onMicOff: () {
+        muteMicCubit.muteMic(force: false);
+      },
+    )..init();
+  }
+
+  void _hangup() {
+    foregroundService?.stop();
+    signalingProvider.hangUp();
   }
 
   @override
@@ -116,7 +130,8 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                         ],
                         ScreenshotBtn(
                           onPressed: () =>
-                              CaptureFrame(callCubit.myRenderer).call(context),
+                              CaptureFrame(callCubit.myVideoRenderer)
+                                  .call(context),
                         ),
                         if (videoRecorder.isRecordingAvailable) ...[
                           BlocBuilder<VideoRecorderCubit, bool>(
@@ -143,8 +158,11 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                       children: [
                         OtherVideoCard(
                           callState.myAsMain
-                              ? callCubit.myRenderer
-                              : callCubit.remoteRenderers.first,
+                              ? callCubit.myVideoRenderer
+                              : callCubit.remoteRenderers.isNotEmpty
+                                  ? callCubit
+                                      .remoteRenderers.first.videoRenderer
+                                  : callCubit.myVideoRenderer,
                           mirror: callState.myAsMain &&
                               cameraSwitchCubit.isFaceMode,
                           stackChildren: [
@@ -153,8 +171,10 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                                 left: 10,
                                 top: 50,
                                 child: IconButton(
-                                  onPressed: () => signalingProvider
-                                      .turnMicOff(callState.myId ?? ""),
+                                  color: Colors.red,
+                                  onPressed: () => signalingProvider.turnMicOff(
+                                    callState.remoteRenderers.first.id,
+                                  ),
                                   icon: Icon(Icons.mic_off),
                                 ),
                               ),
@@ -163,8 +183,11 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                         ),
                         MyVideoCard(
                           !callState.myAsMain
-                              ? callCubit.myRenderer
-                              : callCubit.remoteRenderers.first,
+                              ? callCubit.myVideoRenderer
+                              : callCubit.remoteRenderers.isNotEmpty
+                                  ? callCubit
+                                      .remoteRenderers.first.videoRenderer
+                                  : callCubit.myVideoRenderer,
                           mirror: !callState.myAsMain &&
                               cameraSwitchCubit.isFaceMode,
                           onTap: () =>
@@ -176,7 +199,7 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                 }
 
                 return Center(
-                  child: Text("Your ID: ${callState.myId}"),
+                  child: Text("Your ID: ${callState.myRenderer.id}"),
                 );
               }),
               floatingActionButton: Row(
@@ -211,20 +234,31 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                     isCalling: callState.isCalling,
                     onPressed: () {
                       if (callState.isCalling) {
-                        signalingProvider.hangUp();
+                        _hangup();
                       } else {
                         CallDialog(
                           context,
-                          (ctx, peerId) {
+                          (ctx, peerId, shareScreen) async {
                             Navigator.of(ctx).pop();
                             if (peerId.isNotEmpty) {
-                              signalingProvider.inviteById(peerId);
+                              bool call = true;
+
+                              if (shareScreen) {
+                                foregroundService =
+                                    ForegroundService(title: "Вызов");
+                                call = await foregroundService!.start();
+                              }
+
+                              if (call) {
+                                signalingProvider.inviteById(peerId,
+                                    useScreen: shareScreen);
+                              }
 
                               //signalingProvider.makeCall();
                             }
                           },
                           peers: callState.peers,
-                          myId: callState.myId,
+                          myId: callState.myRenderer.id,
                         ).call();
                       }
                     },

@@ -47,6 +47,7 @@ type Method string
 const (
 	New       Method = "new"
 	Bye       Method = "bye"
+	MicOff Method = "mic_off"
 	Offer     Method = "offer"
 	Answer    Method = "answer"
 	Candidate Method = "candidate"
@@ -74,6 +75,12 @@ type Negotiation struct {
 type Byebye struct {
 	SessionID string `json:"session_id"`
 	From      string `json:"from"`
+}
+
+type MicOffModel struct {
+	SessionID string `json:"session_id"`
+	From      string `json:"from"`
+	Id      string `json:"id"`
 }
 
 type Error struct {
@@ -302,6 +309,55 @@ func (s *Signaler) HandleNewWebSocket(conn *websocket.WebSocketConn, request *ht
 			sendBye(ids[0])
 			//send to bleg
 			sendBye(ids[1])
+		case MicOff:
+			var micOff MicOffModel
+			err := json.Unmarshal(body, &micOff)
+			if err != nil {
+				logger.Errorf("Unmarshal micOff got error %v", err)
+				return
+			}
+
+			ids := strings.Split(micOff.SessionID, "-")
+			if len(ids) != 2 {
+				msg := Request{
+					Type: "error",
+					Data: Error{
+						Request: string(request.Type),
+						Reason:  "Invalid session [" + micOff.SessionID + "]",
+					},
+				}
+				s.Send(conn, msg)
+				return
+			}
+
+			sendMicOff := func(id string) {
+				peer, ok := s.peers[id]
+
+				if !ok {
+					msg := Request{
+						Type: "error",
+						Data: Error{
+							Request: string(request.Type),
+							Reason:  "Peer [" + id + "] not found.",
+						},
+					}
+					s.Send(conn, msg)
+					return
+				}
+				bye := Request{
+					Type: "mic_off",
+					Data: map[string]interface{}{
+						"from":       micOff.From,
+						"id":         micOff.Id,
+						"session_id": micOff.SessionID,
+					},
+				}
+				s.Send(peer.conn, bye)
+			}
+
+			for _, val := range ids {
+				sendMicOff(val);
+			}
 
 		case Keepalive:
 			s.Send(conn, request)

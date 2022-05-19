@@ -53,6 +53,7 @@ const (
 	Candidate Method = "candidate"
 	Leave     Method = "leave"
 	Keepalive Method = "keepalive"
+	CommentRequest Method = "comment"
 )
 
 type Request struct {
@@ -75,6 +76,12 @@ type Negotiation struct {
 type Byebye struct {
 	SessionID string `json:"session_id"`
 	From      string `json:"from"`
+}
+
+type Comment struct {
+	SessionID string `json:"session_id"`
+	From      string `json:"from"`
+	Message   string `json:"message"`
 }
 
 type MicOffModel struct {
@@ -357,6 +364,56 @@ func (s *Signaler) HandleNewWebSocket(conn *websocket.WebSocketConn, request *ht
 
 			for _, val := range ids {
 				sendMicOff(val);
+			}
+		case CommentRequest:
+			var comment Comment
+			err := json.Unmarshal(body, &comment)
+			if err != nil {
+				logger.Errorf("Unmarshal comment got error %v", err)
+				return
+			}
+
+			ids := strings.Split(comment.SessionID, "-")
+			if len(ids) != 2 {
+				msg := Request{
+					Type: "error",
+					Data: Error{
+						Request: string(request.Type),
+						Reason:  "Invalid session [" + comment.SessionID + "]",
+					},
+				}
+				s.Send(conn, msg)
+				return
+			}
+
+			sendComment := func(id string) {
+				peer, ok := s.peers[id]
+
+				if !ok {
+					msg := Request{
+						Type: "error",
+						Data: Error{
+							Request: string(request.Type),
+							Reason:  "Peer [" + id + "] not found.",
+						},
+					}
+					s.Send(conn, msg)
+					return
+				}
+				bye := Request{
+					Type: CommentRequest,
+					Data: map[string]interface{}{
+						"from":       comment.From,
+						"comment":    comment.Message,
+						"session_id": comment.SessionID,
+						"date": 	time.Now().Unix(),
+					},
+				}
+				s.Send(peer.conn, bye)
+			}
+
+			for _, val := range ids {
+				sendComment(val);
 			}
 
 		case Keepalive:

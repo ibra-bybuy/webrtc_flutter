@@ -1,7 +1,10 @@
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:flutter_webrtc_demo/core/cubits/call/call_cubit.dart';
+import 'package:flutter_webrtc_demo/model/comment.dart';
 import 'package:flutter_webrtc_demo/model/renderer.dart';
+import 'package:flutter_webrtc_demo/model/user.dart';
 import 'package:flutter_webrtc_demo/src/call_sample/signaling.dart';
+import 'package:collection/collection.dart';
 
 class SignalingProvider {
   final CallCubit callCubit;
@@ -12,6 +15,7 @@ class SignalingProvider {
   final void Function()? onInvite;
   final void Function()? onConnected;
   final void Function()? onMicOff;
+  final void Function(dynamic)? onComment;
   bool _waitAccept = false;
   SignalingProvider(
     this.callCubit,
@@ -21,16 +25,18 @@ class SignalingProvider {
     this.onInvite,
     this.onConnected,
     this.onMicOff,
+    this.onComment,
   });
 
-  void init() {
-    _signaling ??= Signaling(host)..connect();
+  void init({String name = ""}) {
+    _signaling ??= Signaling(host)..connect(name: name);
     _onSignalStateChange();
     _onCallStateChange();
     _onPeersUpdate();
     _onLocalStreamUpdate();
     _onAddRemoteStream();
     _onRemoveRemoteStream();
+    _onComment();
   }
 
   void _onSignalStateChange() {
@@ -70,6 +76,7 @@ class SignalingProvider {
           }
 
           break;
+
         case CallState.CallStateRinging:
       }
     };
@@ -125,8 +132,17 @@ class SignalingProvider {
 
   void _onPeersUpdate() {
     _signaling?.onPeersUpdate = ((event) {
-      callCubit.updateMyId(event['self']);
-      callCubit.updatePeers(event['peers']);
+      final users =
+          (event['peers'] as List).map((e) => User.fromMap(e)).toList();
+
+      final getMe =
+          users.firstWhereOrNull((element) => element.id == event['self']);
+
+      if (getMe != null) {
+        callCubit.updateMe(getMe);
+      }
+
+      callCubit.updatePeers(users);
     });
   }
 
@@ -145,8 +161,10 @@ class SignalingProvider {
 
   void _onAddRemoteStream() {
     _signaling?.onAddRemoteStream = ((sess, stream) async {
-      final renderer =
-          Renderer(videoRenderer: RTCVideoRenderer(), id: sess.pid);
+      final renderer = Renderer(
+        videoRenderer: RTCVideoRenderer(),
+        user: User(id: sess.pid),
+      );
 
       await renderer.videoRenderer.initialize();
       renderer.videoRenderer.srcObject = stream;
@@ -226,13 +244,25 @@ class SignalingProvider {
   }
 
   void inviteById(String peerId, {bool useScreen = false}) async {
-    if (_signaling != null && peerId != callCubit.myId) {
+    if (_signaling != null && peerId != callCubit.user.id) {
       _signaling?.invite(peerId, 'video', useScreen);
     }
   }
 
   void turnMicOff(String peerId) async {
     _signaling?.turnMicOf(peerId, callCubit.session?.sid ?? "");
+  }
+
+  void sendComment(Comment comment) async {
+    _signaling?.sendComment(comment.message, callCubit.session?.sid ?? "");
+  }
+
+  void _onComment() {
+    _signaling?.onComment = (data) {
+      if (onComment != null) {
+        onComment!(data);
+      }
+    };
   }
 
   Map<String, dynamic> get mediaConstraints => {

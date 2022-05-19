@@ -22,7 +22,7 @@ enum CallState {
   CallStateInvite,
   CallStateConnected,
   CallStateBye,
-  TurnMicOff
+  TurnMicOff,
 }
 
 class Session {
@@ -50,6 +50,7 @@ class Signaling {
 
   Function(SignalingState state)? onSignalingStateChange;
   Function(Session session, CallState state)? onCallStateChange;
+  Function(dynamic data)? onComment;
   Function(MediaStream stream)? onLocalStream;
   Function(Session session, MediaStream stream)? onAddRemoteStream;
   Function(Session session, MediaStream stream)? onRemoveRemoteStream;
@@ -145,6 +146,17 @@ class Signaling {
       },
     );
     print("Turning mic off for $peerId from $_selfId");
+  }
+
+  void sendComment(String text, String sessionId) {
+    _send(
+      'comment',
+      {
+        "session_id": sessionId,
+        "message": text,
+        "from": _selfId,
+      },
+    );
   }
 
   void accept(String sessionId) {
@@ -266,6 +278,13 @@ class Signaling {
           }
         }
         break;
+      case 'comment':
+        {
+          if (onComment != null) {
+            onComment!(data);
+          }
+        }
+        break;
       case 'keepalive':
         {
           print('keepalive response!');
@@ -276,7 +295,7 @@ class Signaling {
     }
   }
 
-  Future<void> connect() async {
+  Future<void> connect({String name = ""}) async {
     var url = 'https://$_host:$_port/ws';
     _socket = SimpleWebSocket(url);
 
@@ -308,7 +327,7 @@ class Signaling {
       print('onOpen');
       onSignalingStateChange?.call(SignalingState.ConnectionOpen);
       _send('new', {
-        'name': DeviceInfo.label,
+        'name': "$name ${DeviceInfo.label}".trim(),
         'id': _selfId,
         'user_agent': DeviceInfo.userAgent
       });

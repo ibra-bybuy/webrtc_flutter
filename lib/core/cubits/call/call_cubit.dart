@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:flutter_webrtc_demo/model/renderer.dart';
+import 'package:flutter_webrtc_demo/model/user.dart';
 import 'package:flutter_webrtc_demo/src/call_sample/signaling.dart';
 
 import 'call_state.dart';
@@ -25,11 +26,11 @@ class CallCubit extends Cubit<CallCubitState> {
     emit(state.copyWithSession(session));
   }
 
-  void updateMyId(String myId) {
-    emit(state.copyWith(myRenderer: myRenderer.copyWith(id: myId)));
+  void updateMe(User user) {
+    emit(state.copyWith(myRenderer: myRenderer.copyWith(user: user)));
   }
 
-  void updatePeers(List<dynamic> peers) {
+  void updatePeers(List<User> peers) {
     emit(state.copyWith(peers: peers));
   }
 
@@ -62,5 +63,5 @@ class CallCubit extends Cubit<CallCubitState> {
   }
 
   Session? get session => state.session;
-  String get myId => state.myRenderer.id;
+  User get user => state.myRenderer.user;
 }

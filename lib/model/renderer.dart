@@ -1,27 +1,29 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+import 'package:flutter_webrtc_demo/model/user.dart';
+
 class Renderer extends Equatable {
-  final String id;
+  final User user;
   final RTCVideoRenderer videoRenderer;
   Renderer({
-    this.id = "",
+    this.user = const User(),
     required this.videoRenderer,
   });
 
   Renderer copyWith({
-    String? id,
+    User? user,
     RTCVideoRenderer? videoRenderer,
   }) {
     return Renderer(
-      id: id ?? this.id,
+      user: user ?? this.user,
       videoRenderer: videoRenderer ?? this.videoRenderer,
     );
   }
 
   @override
-  String toString() => 'Renderer(id: $id, videoRenderer: $videoRenderer)';
+  String toString() => 'Renderer(user: $user, videoRenderer: $videoRenderer)';
 
   @override
-  List<Object> get props => [id, videoRenderer];
+  List<Object> get props => [user, videoRenderer];
 }

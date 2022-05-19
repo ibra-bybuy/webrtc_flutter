@@ -1,12 +1,13 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_webrtc_demo/model/renderer.dart';
+import 'package:flutter_webrtc_demo/model/user.dart';
 
 import 'package:flutter_webrtc_demo/src/call_sample/signaling.dart';
 
 class CallCubitState extends Equatable {
   final bool isCalling;
   final Session? session;
-  final List<dynamic> peers;
+  final List<User> peers;
   final Renderer myRenderer;
   final List<Renderer> remoteRenderers;
   final bool myAsMain;
@@ -22,7 +23,7 @@ class CallCubitState extends Equatable {
   CallCubitState copyWith({
     bool? isCalling,
     Session? session,
-    List<dynamic>? peers,
+    List<User>? peers,
     Renderer? myRenderer,
     List<Renderer>? remoteRenderers,
     bool? myAsMain,

@@ -31,6 +31,7 @@ enum DialogDemoAction {
 class _MyAppState extends State<MyApp> {
   List<RouteItem> items = [];
   String _server = '';
+  String _name = '';
   late SharedPreferences _prefs;
 
   @override
@@ -73,6 +74,7 @@ class _MyAppState extends State<MyApp> {
     _prefs = await SharedPreferences.getInstance();
     setState(() {
       _server = _prefs.getString('server') ?? 'demo.cloudwebrtc.com';
+      _name = _prefs.getString('name') ?? '';
     });
   }
 
@@ -96,17 +98,36 @@ class _MyAppState extends State<MyApp> {
       context: context,
       child: AlertDialog(
         title: const Text('Адрес сервера:'),
-        content: TextFormField(
-          initialValue: _server,
-          onChanged: (String text) {
-            setState(() {
-              _server = text;
-            });
-          },
-          decoration: InputDecoration(
-            hintText: _server,
-          ),
-          textAlign: TextAlign.center,
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              initialValue: _server,
+              onChanged: (String text) {
+                setState(() {
+                  _server = text;
+                });
+              },
+              decoration: InputDecoration(
+                hintText: "Сервер",
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(),
+            TextFormField(
+              initialValue: _name,
+              onChanged: (String text) {
+                setState(() {
+                  _name = text;
+                });
+              },
+              decoration: InputDecoration(
+                hintText: "Имя",
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -139,21 +160,24 @@ class _MyAppState extends State<MyApp> {
       //       _showAddressDialog(context);
       //     }),
       RouteItem(
-          title: 'Звонок тест',
-          subtitle: '',
-          push: (BuildContext context) async {
-            await _showAddressDialog(
-              context,
-              connect: (context) {
-                _prefs.setString('server', _server);
-                Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => GetUserMediaSample(
-                    host: _server,
-                  ),
-                ));
-              },
-            );
-          }),
+        title: 'Звонок тест',
+        subtitle: '',
+        push: (BuildContext context) async {
+          await _showAddressDialog(
+            context,
+            connect: (context) {
+              _prefs.setString('server', _server);
+              _prefs.setString('name', _name);
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => GetUserMediaSample(
+                  host: _server,
+                  name: _name,
+                ),
+              ));
+            },
+          );
+        },
+      ),
     ];
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:core';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc_demo/core/components/dialogs/accept_dialog.dart';
@@ -8,14 +9,17 @@ import 'package:flutter_webrtc_demo/core/components/dialogs/invite_dialog.dart';
 import 'package:flutter_webrtc_demo/core/cubits/call/call_cubit.dart';
 import 'package:flutter_webrtc_demo/core/cubits/call/call_state.dart';
 import 'package:flutter_webrtc_demo/core/cubits/camera_switcher/camera_switcher_cubit.dart';
+import 'package:flutter_webrtc_demo/core/cubits/chat/chat_cubit.dart';
 import 'package:flutter_webrtc_demo/core/cubits/flash/flash_cubit.dart';
 import 'package:flutter_webrtc_demo/core/cubits/mute_mic/mute_mic.dart';
 import 'package:flutter_webrtc_demo/core/cubits/turn_camera/turn_camera.dart';
 import 'package:flutter_webrtc_demo/core/cubits/video_recorder/video_recorder.dart';
 import 'package:flutter_webrtc_demo/core/functions/platform/current_platform.dart';
 import 'package:flutter_webrtc_demo/core/functions/rtc/capture_frame.dart';
+import 'package:flutter_webrtc_demo/model/comment.dart';
 import 'package:flutter_webrtc_demo/providers/foreground_service.dart';
 import 'package:flutter_webrtc_demo/providers/signaling.dart';
+import 'package:flutter_webrtc_demo/screens/chat/chat_screen.dart';
 import 'package:flutter_webrtc_demo/screens/webrtc/components/other_video_card.dart';
 import 'package:flutter_webrtc_demo/screens/webrtc/components/screenshot_btn.dart';
 import 'package:flutter_webrtc_demo/screens/webrtc/components/switch_camera_btn.dart';
@@ -27,7 +31,12 @@ import 'components/record_btn.dart';
 
 class GetUserMediaSample extends StatefulWidget {
   final String host;
-  const GetUserMediaSample({Key? key, required this.host}) : super(key: key);
+  final String name;
+  const GetUserMediaSample({
+    Key? key,
+    required this.host,
+    required this.name,
+  }) : super(key: key);
 
   @override
   _GetUserMediaSampleState createState() => _GetUserMediaSampleState();
@@ -46,6 +55,7 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
   late final TurnCameraCubit turnCameraCubit =
       TurnCameraCubit(callCubit.myVideoRenderer, true);
   ForegroundService? foregroundService;
+  final ChatCubit chatCubit = ChatCubit();
 
   @override
   void initState() {
@@ -54,30 +64,27 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
   }
 
   void _initSignaling() {
-    signalingProvider = SignalingProvider(
-      callCubit,
-      widget.host,
-      onRinging: ShowAcceptDialog(context).call,
-      onHangup: () {
-        foregroundService?.stop();
-        Navigator.of(context).popUntil((route) => route.isCurrent);
-      },
-      onInvite: () {
-        ShowInviteDialog(
-          context,
-          onCancel: () {
-            Navigator.of(context).pop();
-            signalingProvider.hangUp();
-          },
-        ).call();
-      },
-      onConnected: () {
-        Navigator.of(context).pop();
-      },
-      onMicOff: () {
-        muteMicCubit.muteMic(force: false);
-      },
-    )..init();
+    signalingProvider = SignalingProvider(callCubit, widget.host,
+        onRinging: ShowAcceptDialog(context).call, onHangup: () {
+      foregroundService?.stop();
+      Navigator.of(context).popUntil((route) => route.isCurrent);
+    }, onInvite: () {
+      ShowInviteDialog(
+        context,
+        onCancel: () {
+          Navigator.of(context).pop();
+          signalingProvider.hangUp();
+        },
+      ).call();
+    }, onConnected: () {
+      Navigator.of(context).pop();
+    }, onMicOff: () {
+      muteMicCubit.muteMic(force: false);
+    }, onComment: (data) {
+      final comment = Comment.fromWs(data, callCubit.state.peers);
+      chatCubit.addComments([comment]);
+    })
+      ..init(name: widget.name);
   }
 
   void _hangup() {
@@ -89,6 +96,13 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
   Future<void> deactivate() async {
     signalingProvider.deactivate();
     super.deactivate();
+  }
+
+  void _onCommentSend(String text) {
+    final comment = Comment(
+        time: DateTime.now(), message: text, user: callCubit.myRenderer.user);
+
+    signalingProvider.sendComment(comment);
   }
 
   @override
@@ -173,7 +187,7 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                                 child: IconButton(
                                   color: Colors.red,
                                   onPressed: () => signalingProvider.turnMicOff(
-                                    callState.remoteRenderers.first.id,
+                                    callState.remoteRenderers.first.user.id,
                                   ),
                                   icon: Icon(Icons.mic_off),
                                 ),
@@ -199,17 +213,32 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                 }
 
                 return Center(
-                  child: Text("Your ID: ${callState.myRenderer.id}"),
+                  child: Text("Your ID: ${callState.myRenderer.user.id}"),
                 );
               }),
               floatingActionButton: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (callState.isCalling) ...[
+                    FloatingActionButton(
+                      heroTag: "1",
+                      onPressed: () =>
+                          Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => ChatScreen(
+                          chatCubit: chatCubit,
+                          onPressed: _onCommentSend,
+                        ),
+                      )),
+                      child: Icon(CupertinoIcons.chat_bubble_fill),
+                    ),
+                    const SizedBox(width: 30.0),
+                  ],
+                  if (callState.isCalling) ...[
                     BlocBuilder<TurnCameraCubit, bool>(
                       bloc: turnCameraCubit,
                       builder: (context, videoState) {
                         return FloatingActionButton(
+                          heroTag: "2",
                           onPressed: () => videoState
                               ? turnCameraCubit.turnOff()
                               : turnCameraCubit.turnOn(),
@@ -223,6 +252,7 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                       bloc: muteMicCubit,
                       builder: (context, micState) {
                         return FloatingActionButton(
+                          heroTag: "3",
                           onPressed: () => muteMicCubit.muteMic(),
                           child: Icon(micState ? Icons.mic_off : Icons.mic),
                         );
@@ -243,7 +273,7 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                             if (peerId.isNotEmpty) {
                               bool call = true;
 
-                              if (shareScreen) {
+                              if (shareScreen && CurrentPlatform.isAndroid) {
                                 foregroundService =
                                     ForegroundService(title: "Вызов");
                                 call = await foregroundService!.start();
@@ -258,7 +288,7 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
                             }
                           },
                           peers: callState.peers,
-                          myId: callState.myRenderer.id,
+                          myId: callState.myRenderer.user.id,
                         ).call();
                       }
                     },

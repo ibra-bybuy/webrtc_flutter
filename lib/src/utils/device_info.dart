@@ -2,7 +2,7 @@ import 'dart:io';
 
 class DeviceInfo {
   static String get label {
-    return Platform.operatingSystem + '(' + Platform.localHostname + ")";
+    return Platform.operatingSystem;
   }
 
   static String get userAgent {
